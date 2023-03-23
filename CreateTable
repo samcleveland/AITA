@@ -1,0 +1,40 @@
+DROP TABLE IF EXISTS initial_result;
+
+CREATE TABLE initial_result AS (
+SELECT c.post_link, c.score, c.early_indicator
+FROM comment AS c
+join
+	(SELECT post_link, max(score) as score
+	FROM comment
+	WHERE early_indicator <> 'false'
+	GROUP BY post_link) AS sub_c
+	ON c.post_link = sub_c.post_link AND 
+	c.score = sub_c.score
+WHERE c.early_indicator <> 'false'
+GROUP BY c.post_link, c.score, c.early_indicator)
+;
+
+DROP TABLE IF EXISTS output_table;
+
+CREATE TABLE output_table AS (
+SELECT p.flair, ir.early_indicator, p.title, p.selftext, p.url
+FROM post AS p
+LEFT JOIN initial_result AS ir 
+	ON p.post_index = ir.post_link)
+;
+
+DROP TABLE IF EXISTS unlabeled_data;
+
+-- create table of unlabeled data for updating later
+CREATE TABLE unlabeled_data AS (
+SELECT flair, url
+FROM output_table
+WHERE flair IS Null OR
+	flair = 'Not enough info'
+GROUP BY flair, url);
+
+ -- check if flair and early_indicator produce different results
+SELECT flair, early_indicator
+FROM output_table
+where flair is not null
+GROUP BY flair, early_indicator;
